@@ -118,45 +118,6 @@ class ShaderNodeBase(Node):
 
 
 
-class OutputShaderNode(ShaderNodeBase):
-    """
-    Output shader node is the final node in the graph tree.
-    Final shader code for current graph is generated from this node and
-    any nodes down stream from this node.
-    """
-    label = "Output"
-
-    def __init__(self):
-        super().__init__()
-        self.name = "OutputNode"
-
-        # Node input properties
-        self.albedo_input = ShaderNodeIO(
-            "Albedo",
-            "Albedo",
-            ShaderValueHint.FLOAT3,
-            static_value = Vec3F(1.0, 1.0, 1.0)
-        )
-        self._registerInput(self.albedo_input)
-
-        self.alpha_input = ShaderNodeIO("Alpha", "Alpha", ShaderValueHint.FLOAT, 1.0)
-        self._registerInput(self.alpha_input)
-
-    def generateShaderCode(self) -> str:
-        """Generate shader code for this node"""
-        albedo_value: NodeValue = self.getNodeInputValue(self.albedo_input.uuid)
-        alpha_value: NodeValue = self.getNodeInputValue(self.alpha_input.uuid)
-        assertRef(albedo_value)
-        assertRef(alpha_value)
-
-        src: str = f"""
-        vec3 albedo = {albedo_value.value};
-        float alpha = {alpha_value.value};
-        """
-
-        return textwrap.dedent(src).strip()
-
-
 class FloatShaderNode(ShaderNodeBase):
     """
     Float shader is a simple node that defines shader float variable.

@@ -8,7 +8,8 @@ import logging as Log
 import textwrap
 
 from .asserts import assertRef, assertTrue, assertType
-from .shadernodes import ShaderNodeBase, OutputShaderNode
+from .shadernodes import ShaderNodeBase
+from .output_shadernodes import OutputShaderNodeBase
 
 class ShaderGen(object):
     def __init__(self) -> None:
@@ -40,16 +41,16 @@ class ShaderGen(object):
         The logic serialised from node is wrapped in interpretGraph() function.
 
         Parameters:
-            nodes (list[ShaderNodeBase]) : graph nodes - must contain one OutputShaderNode
+            nodes (list[ShaderNodeBase]) : graph nodes - must contain one OutputShaderNodeBase
 
         Returns:
             str : Shader source code
         """
 
         # Find OutputShader node.
-        output_node: OutputShaderNode = None
+        output_node: OutputShaderNodeBase = None
         for node in nodes:
-            if isinstance(node, OutputShaderNode):
+            if isinstance(node, OutputShaderNodeBase):
                 output_node = node
                 break
 
@@ -86,7 +87,7 @@ class ShaderGen(object):
     def generateSource(self, nodes: list[ShaderNodeBase]) -> None:
         """
         Generates shader sources based on the given list of shader node.
-        List of shader nodes must contain OutputShaderNode
+        List of shader nodes must contain OutputShaderNodeBase
 
         Parameters:
             nodes (list[ShaderNodeBase]) : List of shader nodes to build source from.

@@ -16,7 +16,8 @@ from PySide6.QtCore import Signal, Slot, QObject, QPoint, Qt, QPointF
 from .node import Node, NodeConnection, NodeIO
 from .node_widget import NodeProxyWidget, NodePinShapeWidget
 from .connection_widget import ConnectionWidget
-from .shadernodes import FloatShaderNode, MulShaderNode, OutputShaderNode
+from .shadernodes import FloatShaderNode, MulShaderNode
+from .output_shadernodes import PhongOutputShaderNode
 from .asserts import assertRef, assertFalse, assertTrue
 
 
@@ -111,7 +112,7 @@ class NodeGraphScene(QGraphicsScene):
         node0 = MulShaderNode()
         node1 = FloatShaderNode()
         node2 = FloatShaderNode()
-        node3 = OutputShaderNode()
+        node3 = PhongOutputShaderNode()
 
         self.addNode(node0)
         self.addNode(node1)

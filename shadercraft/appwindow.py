@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
 )
 
 from .shadernodes import (
-    OutputShaderNode,
     ShaderNodeBase,
     FloatShaderNode,
     MulShaderNode,
@@ -24,6 +23,11 @@ from .shadernodes import (
     VertexNormalShaderNode,
     VertexPositionShaderNode,
     VectorToColor
+)
+
+from .output_shadernodes import (
+    OutputShaderNodeBase,
+    PhongOutputShaderNode
 )
 
 from .asserts import assertTrue, assertRef, assertType
@@ -75,7 +79,7 @@ class AppWindow(QMainWindow):
             LerpNode,
             LerpVecNode,
             VectorToColor,
-            OutputShaderNode
+            PhongOutputShaderNode
         ])
 
         self.palette_widget.createNodeRequested.connect(self.onPaletteNodeRequested)
@@ -191,7 +195,7 @@ class AppWindow(QMainWindow):
         Collects all the graph shader nodes and generates shader source code.
         """
         Log.info("Generating shader code")
-        output_nodes: OutputShaderNode = self.graph_scene.getAllNodeOfClass(OutputShaderNode)
+        output_nodes: OutputShaderNodeBase = self.graph_scene.getAllNodeOfClass(OutputShaderNodeBase)
         if output_nodes is None:
             Log.warning("Attempting to generate shader code with no output node in the scene, aborting.")
             return
