@@ -1,15 +1,25 @@
 from __future__ import annotations
 from uuid import UUID
 import textwrap
+from enum import Enum
 
 from .asserts import assertRef, assertType, assertTrue
 from .node import NodeValue
 from .shadernodes import ShaderNodeIO, ShaderValueHint, ShaderNodeBase
 from .vectors import Vec3F
 
+class ShaderLightingModel(Enum):
+    """
+    Enum class for specifying lighting models used by output shader nodes.
+
+    """
+    FALLBACK = 0
+    PHONG = 1
+
 class OutputShaderNodeBase(ShaderNodeBase):
-    VertexShaderTarget: str = "template_standard.vs"
-    PixelShaderTarget: str = "template_standard.ps"
+    vertexShaderTarget: str = "template_standard.vs"
+    pixelShaderTarget: str = "template_standard.ps"
+    lightingModel: ShaderLightingModel = ShaderLightingModel.FALLBACK
 
 
 class PhongOutputShaderNode(OutputShaderNodeBase):
@@ -17,8 +27,9 @@ class PhongOutputShaderNode(OutputShaderNodeBase):
     Output shader node that supports Blinn-Phong lighting model.
 
     """
-    VertexShaderTarget = "template_standard.vs"
-    PixelShaderTarget = "template_standard.ps"
+    vertexShaderTarget = "template_standard.vs"
+    pixelShaderTarget = "template_standard.ps"
+    lightingModel = ShaderLightingModel.PHONG
     label = "BlinnPhong"
 
     def __init__(self):

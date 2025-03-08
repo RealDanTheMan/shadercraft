@@ -1,6 +1,10 @@
 // Template shader for generating pixel shader source
 #version 330 core
 
+#define $lighting_model
+
+uniform vec3 light_dir = vec3(1.0, 0.0, 0.0);
+
 // Pixel shader inputs from vertex stage
 in vec3 pix_position;
 in vec3 pix_color;
@@ -10,6 +14,11 @@ in vec3 pix_normal;
 struct GraphOutput {
 	vec3 albedo;
 	vec3 alpha;
+
+#ifdef PHONG_LIGHTING_MODEL
+	vec3 normal;
+	vec3 spec;
+#endif
 };
 
 // Main function for generating values from shader graph nodes
@@ -20,8 +29,28 @@ $graph_src
 	output.albedo = vec3(albedo);
 	output.alpha = vec3(alpha);
 
+#ifdef PHONG_LIGHTING_MODEL
+	output.normal = vec3(normal);
+	output.spec = vec3(spec);
+#endif
+
 	return output;
 }
+
+#ifdef PHONG_LIGHTING_MODEL
+vec3 PhongLighting(GraphOutput graph) {
+	return vec3(1.0, 1.0, 1.0);
+}
+
+vec4 PhongMain() {
+
+	GraphOutput values = interpretGraph();
+	vec3 col = pix_color * values.albedo;
+	col *= PhongLighting(values);
+
+	return vec4(col, values.alpha);
+}
+#endif
 
 
 // Pixel shader outputs
@@ -29,7 +58,18 @@ out vec4 frag_color;
 
 // Pixel shader entry point
 void main() {
+
+#ifdef PHONG_LIGHTING_MODEL
+	/// Blinn-Phong lighting model.
+	frag_color = PhongMain();
+	return;
+
+#else
+	/// Fallback lighting model.
 	GraphOutput values = interpretGraph();
 	vec3 col = pix_color * values.albedo;
 	frag_color = vec4(col, 1.0);
+	return;
+
+#endif
 }

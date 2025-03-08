@@ -9,7 +9,7 @@ import textwrap
 
 from .asserts import assertRef, assertTrue, assertType
 from .shadernodes import ShaderNodeBase
-from .output_shadernodes import OutputShaderNodeBase
+from .output_shadernodes import OutputShaderNodeBase, ShaderLightingModel
 
 class ShaderGen(object):
     def __init__(self) -> None:
@@ -78,9 +78,17 @@ class ShaderGen(object):
         with open(template, "r", encoding="utf-8") as file:
             src = file.read()
 
+        lighting_model: str = None
+        if output_node.lightingModel is ShaderLightingModel.FALLBACK:
+            lighting_model = "FALLBACK_LIGHTING_MODEL"
+        elif output_node.lightingModel is ShaderLightingModel.PHONG:
+            lighting_model = "PHONG_LIGHTING_MODEL"
+
         assertRef(src, "Failed to read pixel shader template file")
+        assertRef(lighting_model, "Invalid lighting model")
+
         src_template: StringTemplate = StringTemplate(src)
-        final_src: str = src_template.substitute(graph_src=node_src)
+        final_src: str = src_template.substitute(graph_src=node_src, lighting_model=lighting_model)
 
         return final_src
 
