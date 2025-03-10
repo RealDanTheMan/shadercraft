@@ -3,7 +3,11 @@
 
 #define $lighting_model
 
-uniform vec3 light_dir = vec3(1.0, 0.0, 0.0);
+uniform vec3 light_dir = vec3(0.3, 0.3, -0.4);
+uniform vec3 light_color = vec3(1.0, 1.0, 1.0);
+uniform float light_intensity = 1.0;
+
+uniform vec3 view_dir = vec3(0.0, 0.0, -1.0);
 
 // Pixel shader inputs from vertex stage
 in vec3 pix_position;
@@ -12,12 +16,12 @@ in vec3 pix_normal;
 
 // Structure containing graph ouputs
 struct GraphOutput {
-	vec3 albedo;
-	vec3 alpha;
+	vec3 albedo;	// Surface color
+	vec3 alpha;		// Opacity
 
 #ifdef PHONG_LIGHTING_MODEL
-	vec3 normal;
-	vec3 spec;
+	vec3 normal;	// Vertex normal
+	vec3 spec;		// Specular color & intensity
 #endif
 };
 
@@ -38,17 +42,24 @@ $graph_src
 }
 
 #ifdef PHONG_LIGHTING_MODEL
-vec3 PhongLighting(GraphOutput graph) {
-	return vec3(1.0, 1.0, 1.0);
-}
-
 vec4 PhongMain() {
 
 	GraphOutput values = interpretGraph();
-	vec3 col = pix_color * values.albedo;
-	col *= PhongLighting(values);
 
-	return vec4(col, values.alpha);
+	// Blinn-Phong coefficients.
+	vec3 normal = normalize(values.normal);
+	vec3 half_dir = normalize(light_dir + view_dir);
+	float NdotL = dot(normal, light_dir);
+	float lambertian = max(NdotL, 0.0);
+	float specAngle = max(dot(half_dir, normal), 0.0);
+	float spec = pow(specAngle, 32.0);
+
+	// Blinn-Phong light components.
+	vec3 direct = values.albedo * lambertian * light_intensity * light_color;
+	vec3 specular = values.spec * spec * light_color; 
+	vec3 composite = direct + specular;
+
+	return vec4(composite, values.alpha);
 }
 #endif
 
