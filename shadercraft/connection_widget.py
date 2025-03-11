@@ -3,7 +3,7 @@ from uuid import UUID, uuid1
 
 from PySide6.QtCore import QObject, QRectF, QPointF, QLine, Qt
 from PySide6.QtWidgets import QGraphicsWidget, QWidget
-from PySide6.QtGui import QPainter, QPen
+from PySide6.QtGui import QPainter, QPen, QPainterPath
 
 from .asserts import assertRef
 from .node_widget import NodeProxyWidget
@@ -37,7 +37,17 @@ class ConnectionWidget(QGraphicsWidget):
         pen.setWidth(3)
         painter.setPen(pen)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.drawLine(QLine(self.start.toPoint(), self.end.toPoint()))
+
+        # Define control points for the bezier curve.
+        p1: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.start.y())
+        p2: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.end.y())
+
+        # Draw cubic smoothed bezier curve between two points.
+        path: QPainterPath = QPainterPath()
+        path.moveTo(self.start)
+        path.cubicTo(p1, p2, self.end)
+
+        painter.drawPath(path)
 
     def boundingRect(self) -> QRectF:
         """Get bounding box of this widget"""
