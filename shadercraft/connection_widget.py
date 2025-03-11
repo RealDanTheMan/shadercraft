@@ -27,6 +27,7 @@ class ConnectionWidget(QGraphicsWidget):
         self.start: QPointF = start
         self.end: QPointF = end
         self.setZValue(self.depth_order)
+        self.bounds: QRectF = QRectF(QPointF(0.0, 0.0), QPointF(1.0, 1.0))
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = ...) -> None:
         """Draws the entire widget"""
@@ -48,19 +49,11 @@ class ConnectionWidget(QGraphicsWidget):
         path.cubicTo(p1, p2, self.end)
 
         painter.drawPath(path)
+        self.bounds = path.boundingRect()
 
     def boundingRect(self) -> QRectF:
         """Get bounding box of this widget"""
-        assertRef(self.start)
-        assertRef(self.end)
-
-        left = min(self.start.x(), self.end.x())
-        right = max(self.start.x(), self.end.x())
-        top = min(self.start.y(), self.end.y())
-        bottom = max(self.start.y(), self.end.y())
-        exp = self.pin_radius * 2
-
-        return QRectF(QPointF(left - exp, top - exp), QPointF(right + exp, bottom + exp))
+        return self.bounds
 
     def updateConnectionPoints(self, a: QPointF, b: QPointF) -> None:
         """
