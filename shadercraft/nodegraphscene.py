@@ -287,7 +287,9 @@ class NodeGraphScene(QGraphicsScene):
         self.__drop_pin_owner = None
 
         if self.__drag_drop_preview is not None:
+            Log.warning("Disposing drag and drop connection preview")
             self.removeItem(self.__drag_drop_preview)
+            self.__drag_drop_preview.setParent(None)
             self.__drag_drop_preview.deleteLater()
             self.__drag_drop_preview = None
 
@@ -298,14 +300,14 @@ class NodeGraphScene(QGraphicsScene):
         target_node: Node = self.__drop_pin_owner
         target_pin: UUID = self.__drop_pin
 
+        self.resetPinDragDrop()
+
         if source_node is None or source_pin is None:
             Log.debug("Aborting pin drag & drop: source pin or its owner node are invalid")
-            self.resetPinDragDrop()
             return
 
         if target_node is None or target_pin is None:
             Log.debug("Aborting pin drag & drop: target pin or its owner node are invalid")
-            self.resetPinDragDrop()
             return
 
         if source_node.getNodeOutput(source_pin) is None:
@@ -318,11 +320,9 @@ class NodeGraphScene(QGraphicsScene):
 
         if source_node.uuid == target_node.uuid:
             Log.debug("Aborting pin drag & drop: pins share parents")
-            self.resetPinDragDrop()
             return
 
         self.attemptNodeConnection(source_node, source_pin, target_node, target_pin)
-        self.resetPinDragDrop()
 
     def attemptNodeConnection(
         self,
