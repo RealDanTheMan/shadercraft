@@ -287,7 +287,6 @@ class NodeGraphScene(QGraphicsScene):
         self.__drop_pin_owner = None
 
         if self.__drag_drop_preview is not None:
-            Log.warning("Disposing drag and drop connection preview")
             self.removeItem(self.__drag_drop_preview)
             self.__drag_drop_preview.setParent(None)
             self.__drag_drop_preview.deleteLater()
