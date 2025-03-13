@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Type
 from dataclasses import dataclass
 from collections import OrderedDict
-from uuid import UUID, uuid1
+from uuid import UUID, uuid4
 from enum import Enum
 import logging as Log
 from PySide6.QtCore import QObject, QPointF, Slot, Signal
@@ -43,7 +43,7 @@ class NodeIO:
         assertType(name, str)
         assertType(label, str)
 
-        self.uuid: UUID = uuid1()
+        self.uuid: UUID = uuid4()
         self.name: str = name
         self.label: str = label
 
@@ -61,7 +61,7 @@ class NodeConnection():
         assertRef(target)
         assertRef(target_uuid)
 
-        self.uuid = uuid1()
+        self.uuid = uuid4()
         self.source: Node = src
         self.source_uuid: UUID = src_uuid
         self.target: Node = target
@@ -129,7 +129,7 @@ class Node(QObject):
         QObject.__init__(self, None)
 
         self.name: str = "Node_Name"
-        self.uuid: UUID = uuid1()
+        self.uuid: UUID = uuid4()
         self.widget: NodeProxyWidget = None
         self.posx: float = 0.0
         self.posy: float = 0.0

@@ -9,7 +9,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
     QTextEdit,
-    QFrame
+    QFrame,
+    QFileDialog
 )
 
 from .shadernodes import (
@@ -39,6 +40,7 @@ from .nodepalette import NodePaletteWidget
 from .propertypanel import PropertyPanelWidget
 from .viewportwidget import ViewportWidget
 from .shadergen import ShaderGen
+from .diskio import NodeGraphSerialiser
 
 
 class AppWindow(QMainWindow):
@@ -58,7 +60,10 @@ class AppWindow(QMainWindow):
         self._initPalette()
         self._initPropertyPanel()
         self._initPreviewViewport()
+        
+        self.ui.actionSave_As.triggered.connect(self.onSaveAs)
         self.ui.actionGenerate_Shader_Code.triggered.connect(self.onGenerateShaderCode)
+
 
     def _initPalette(self) -> None:
         """
@@ -223,6 +228,31 @@ class AppWindow(QMainWindow):
         assertRef(self.property_panel)
         self.property_panel.setActiveNode(node)
         self.property_panel.fetchNodeValues()
+
+    def onSaveAs(self) -> None:
+        """
+        Event handler invoked when the user clicks on save as option from the file menu.
+        Allows the user to select location on disk where the shader graph is serialised to.
+        """
+        Log.debug("Attempting to save node graph to disk")
+        assertRef(self.graph_scene)
+
+        destination: str = QFileDialog.getSaveFileName(self, "Save As", filter="*.scg")
+        if destination is not None and len(destination) > 0:
+            filepath: str = destination[0]
+            if filepath is None or len(filepath) == 0:
+                return
+
+            if not os.path.exists(filepath):
+                nodes: list[Node] = self.graph_scene.getAllNodes()
+                serialiser: NodeGraphSerialiser = NodeGraphSerialiser(nodes)
+                serialiser.serialise()
+                serialiser.write(destination[0])
+            else:
+                # TODO: Handle overwriting files and readonly flags.
+                Log.error(f"Node graph file already exists, aborting -> {filepath}")
+
+        return
 
     @staticmethod
     def getLogFile() -> Optional[str]:
