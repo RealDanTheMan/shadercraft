@@ -46,11 +46,17 @@ class ConnectionWidget(QGraphicsWidget):
         path.moveTo(self.start)
         path.cubicTo(p1, p2, self.end)
 
-        painter.setPen(self.pen)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(self.pen)
         painter.drawPath(path)
+        painter.setPen(Qt.NoPen)
 
-        self.bounds = path.boundingRect()
+        # Note: updating bounds without calling update() or prepareGeometryChange() will
+        # cause random intermitent crashes in native qt app code.
+        self.prepareGeometryChange()
+        self.bounds = QRectF(path.boundingRect())
+        self.update()
+
 
     def boundingRect(self) -> QRectF:
         """Get bounding box of this widget"""
