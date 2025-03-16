@@ -60,8 +60,9 @@ class AppWindow(QMainWindow):
         self._initPalette()
         self._initPropertyPanel()
         self._initPreviewViewport()
-        
+
         self.ui.actionSave_As.triggered.connect(self.onSaveAs)
+        self.ui.actionOpen.triggered.connect(self.onOpenFile)
         self.ui.actionGenerate_Shader_Code.triggered.connect(self.onGenerateShaderCode)
 
 
@@ -237,7 +238,7 @@ class AppWindow(QMainWindow):
         Log.debug("Attempting to save node graph to disk")
         assertRef(self.graph_scene)
 
-        destination: str = QFileDialog.getSaveFileName(self, "Save As", filter="*.scg")
+        destination: tuple[str, str] = QFileDialog.getSaveFileName(self, "Save As", filter="*.scg")
         if destination is not None and len(destination) > 0:
             filepath: str = destination[0]
             if filepath is None or len(filepath) == 0:
@@ -253,6 +254,31 @@ class AppWindow(QMainWindow):
                 Log.error(f"Node graph file already exists, aborting -> {filepath}")
 
         return
+
+    def onOpenFile(self) -> None:
+        """
+        Event handler invoked when the user clicks on open file option from the file menu.
+        Allow the user to select shader graphs file to load.
+        
+        """
+        Log.debug("Attempting to load node graph from disk.")
+
+        self.graph_scene.clear()
+        source:tuple[str, str] = QFileDialog.getOpenFileName(self, "Open File", filter="*.scg")
+        if source is not None and len(source) > 0:
+            filepath: str = source[0]
+            if filepath is None or len(filepath) == 0:
+                return
+
+            serialiser: NodeGraphSerialiser = NodeGraphSerialiser([])
+            serialiser.read(filepath)
+            serialiser.deserialise()
+
+            nodes: list[Node] = serialiser.getNodes()
+            for node in nodes:
+                self.graph_scene.addNode(node)
+            Log.info(f"Loaded {len(nodes)} nodes")
+
 
     @staticmethod
     def getLogFile() -> Optional[str]:
