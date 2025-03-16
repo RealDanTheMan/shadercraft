@@ -59,8 +59,8 @@ class ConnectionWidget(QGraphicsWidget):
         Will trigger widger re-draw.
 
         Parameters:
-            a (QPointF) : Connection start point.
-            b (QPointF) : Connection end point.
+            start (QPointF) : Connection start point.
+            end (QPointF) : Connection end point.
 
         """
         assertType(start, QPointF)
