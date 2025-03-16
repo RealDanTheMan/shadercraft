@@ -30,33 +30,18 @@ class ConnectionWidget(QGraphicsWidget):
         self.bounds: QRectF = QRectF(QPointF(0.0, 0.0), QPointF(1.0, 1.0))
         self.pen: QPen = QPen(Qt.green)
         self.pen.setWidth(3)
+        self.__path: QPainterPath = QPainterPath()
+        self.updateConnectionPoints(self.start, self.end)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = ...) -> None:
         """Draws the entire widget"""
-        assertRef(self.start)
-        assertRef(self.end)
         assertRef(self.pen)
-
-        # Define control points for the bezier curve.
-        p1: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.start.y())
-        p2: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.end.y())
-
-        # Draw cubic smoothed bezier curve between two points.
-        path: QPainterPath = QPainterPath()
-        path.moveTo(self.start)
-        path.cubicTo(p1, p2, self.end)
+        assertRef(self.__path)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(self.pen)
-        painter.drawPath(path)
+        painter.drawPath(self.__path)
         painter.setPen(Qt.NoPen)
-
-        # Note: updating bounds without calling update() or prepareGeometryChange() will
-        # cause random intermitent crashes in native qt app code.
-        self.prepareGeometryChange()
-        self.bounds = QRectF(path.boundingRect())
-        self.update()
-
 
     def boundingRect(self) -> QRectF:
         """Get bounding box of this widget"""
@@ -66,11 +51,22 @@ class ConnectionWidget(QGraphicsWidget):
         """
         Update end points of this connection widget.
         Will trigger widger re-draw.
+
         """
         assertRef(a)
         assertRef(b)
 
         self.start = a
         self.end = b
+
+        # bezier control points.
+        p1: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.start.y())
+        p2: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.end.y())
+
+        self.__path.clear()
+        self.__path.moveTo(self.start)
+        self.__path.cubicTo(p1, p2, self.end)
+
         self.prepareGeometryChange()
+        self.bounds = QRectF(self.__path.boundingRect())
         self.update()
