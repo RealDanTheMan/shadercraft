@@ -2,10 +2,10 @@ from __future__ import annotations
 from uuid import UUID, uuid1
 
 from PySide6.QtCore import QObject, QRectF, QPointF, QLine, Qt
-from PySide6.QtWidgets import QGraphicsWidget, QWidget
+from PySide6.QtWidgets import QGraphicsWidget, QWidget, QStyleOptionGraphicsItem
 from PySide6.QtGui import QPainter, QPen, QPainterPath
 
-from .asserts import assertRef
+from .asserts import assertRef, assertType
 from .node_widget import NodeProxyWidget
 
 
@@ -20,21 +20,24 @@ class ConnectionWidget(QGraphicsWidget):
     def __init__(self, uuid: UUID, start: QPointF, end: QPointF) -> None:
         super().__init__()
         assertRef(uuid)
-        assertRef(start)
-        assertRef(end)
+        assertType(start, QPointF)
+        assertType(end, QPointF)
 
         self.uuid = uuid
-        self.start: QPointF = start
-        self.end: QPointF = end
-        self.setZValue(self.depth_order)
-        self.bounds: QRectF = QRectF(QPointF(0.0, 0.0), QPointF(1.0, 1.0))
         self.pen: QPen = QPen(Qt.green)
         self.pen.setWidth(3)
         self.__path: QPainterPath = QPainterPath()
-        self.updateConnectionPoints(self.start, self.end)
+        self.__bounds: QRectF = QRectF(QPointF(0.0, 0.0), QPointF(1.0, 1.0))
+
+        self.setZValue(self.depth_order)
+        self.updateConnectionPoints(start, end)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = ...) -> None:
-        """Draws the entire widget"""
+        """
+        Draw connection widget.
+        Draw call is triggered automatically by QT, users should use update instead.
+
+        """
         assertRef(self.pen)
         assertRef(self.__path)
 
@@ -44,29 +47,34 @@ class ConnectionWidget(QGraphicsWidget):
         painter.setPen(Qt.NoPen)
 
     def boundingRect(self) -> QRectF:
-        """Get bounding box of this widget"""
-        return self.bounds
-
-    def updateConnectionPoints(self, a: QPointF, b: QPointF) -> None:
         """
-        Update end points of this connection widget.
+        Get bounding box of this widget.
+
+        """
+        return self.__bounds
+
+    def updateConnectionPoints(self, start: QPointF, end: QPointF) -> None:
+        """
+        Update connection bezier path based on start and end points.
         Will trigger widger re-draw.
 
+        Parameters:
+            a (QPointF) : Connection start point.
+            b (QPointF) : Connection end point.
+
         """
-        assertRef(a)
-        assertRef(b)
+        assertType(start, QPointF)
+        assertType(end, QPointF)
 
-        self.start = a
-        self.end = b
-
-        # bezier control points.
-        p1: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.start.y())
-        p2: QPointF = QPointF(self.start.x() + self.end.x() * 0.5, self.end.y())
+        # Derive bezier control points & build cubic path
+        p1: QPointF = QPointF(start.x() + end.x() * 0.5, start.y())
+        p2: QPointF = QPointF(start.x() + end.x() * 0.5, end.y())
 
         self.__path.clear()
-        self.__path.moveTo(self.start)
-        self.__path.cubicTo(p1, p2, self.end)
+        self.__path.moveTo(start)
+        self.__path.cubicTo(p1, p2, end)
 
+        # Update bounds of this widget.
         self.prepareGeometryChange()
-        self.bounds = QRectF(self.__path.boundingRect())
+        self.__bounds = QRectF(self.__path.boundingRect())
         self.update()
