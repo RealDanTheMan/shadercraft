@@ -110,15 +110,14 @@ class NodeGraphSerialiser():
             "nodes" : []
         }
 
-        serialiser: NodeSerialiser = NodeSerialiser()
         for node in self.__nodes:
             assertRef(node)
             assertType(node, Node)
 
             Log.info(f"Serialising node -> {node}")
-            serialiser.clearBuffer()
-            serialiser.serialiseNode(node)
-            data["nodes"].append(serialiser.getBufferValue())
+            self.__node_serialiser.clearBuffer()
+            self.__node_serialiser.serialiseNode(node)
+            data["nodes"].append(self.__node_serialiser.getBufferValue())
 
         self.__buffer = json.dumps(data, indent=2)
 
