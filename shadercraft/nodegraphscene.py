@@ -100,6 +100,14 @@ class NodeGraphScene(QGraphicsScene):
         if node.getWidget() is not None:
             self.removeItem(node.getWidget())
 
+    def deleteAllNodes(self) -> None:
+        """
+        Removes all nodes and their connections from the active graph scene.
+        
+        """
+        for node in self.getAllNodes():
+            self.deleteNode(node)
+
     def deleteSelectedNode(self) -> bool:
         """Delete currently selected node in the graph scene"""
         node: Optional[Node] = self.getSelectedNode()
