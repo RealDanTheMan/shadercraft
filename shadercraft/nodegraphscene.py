@@ -69,7 +69,6 @@ class NodeGraphScene(QGraphicsScene):
         assertFalse(node in self.__nodes, "Node already present in the scene")
         Log.debug(f"Adding new to the graph -> {node} @ {node.posx}x{node.posy}")
 
-        self.assignNodeName(node)
         self.__nodes.append(node)
         node.selectionChanged.connect(self.onNodeSelectionChanged)
         node.connectionAdded.connect(self.onNodeConnectionAdded)
@@ -394,16 +393,3 @@ class NodeGraphScene(QGraphicsScene):
             Log.debug("Clearing selected node")
             self.__selected_node = None
         self.selected_node_changed.emit(self.__selected_node)
-
-    def assignNodeName(self, node: Node) -> str:
-        """Generates unqiue node name"""
-        if node.name not in self.__names:
-            self.__names_lookup[node.name] = 0
-            self.__names.append(node.name)
-            return node.name
-        else:
-            self.__names_lookup[node.name] += 1
-            name = f"{node.name}_{self.__names_lookup[node.name]}"
-            self.__names.append(name)
-            node.name = name
-            return name
