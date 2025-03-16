@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, QPointF, Slot, Signal
 from .connection_widget import ConnectionWidget
 from .node_widget import NodeProxyWidget, NodePropetyInfo
 from .asserts import assertRef, assertTrue, assertType
+from .serialisation import JSONChunk, ISerialisableJSON
 
 
 @dataclass
@@ -113,7 +114,7 @@ class NodeConnection():
         self.getWidget().updateConnectionPoints(start, end)
 
 
-class Node(QObject):
+class Node(QObject, ISerialisableJSON):
     """
     Class that encapsulates base node implementation.
     Nodes can be added to the node graph scene and connected via their input/output to
@@ -337,6 +338,51 @@ class Node(QObject):
     def getSelectedStatate(self) -> bool:
         """Get value indicating if this node is currently selected or not"""
         return self.__selected
+
+    @classmethod
+    def serialiseJSON(cls, obj: object) -> JSONChunk:
+        """
+        ISerialisableJSON implementation.
+        Serialises this class to json data chunk.
+
+        """
+        assertType(obj, Node)
+        assertType(obj.uuid, UUID)
+        assertType(obj.name, str)
+        assertType(obj.posx, float)
+        assertType(obj.posy, float)
+
+        data = {
+            "uuid"  : str(obj.uuid),
+            "name"  : obj.name,
+            "posx"  : str(obj.posx),
+            "posy"  : str(obj.posy),
+        }
+
+        chunk: JSONChunk = JSONChunk(
+            data,
+            1,
+            cls.__name__
+        )
+
+        return chunk
+
+    @classmethod
+    def deserialiseJSON(cls, chunk: JSONChunk) -> object:
+        """
+        ISerialisableJSON implementation.
+        Deserialises given JSON chunk into class object
+
+        """
+        assertType(chunk, JSONChunk)
+
+        obj = cls()
+        obj.uuid = UUID(chunk.data["uuid"])
+        obj.name = chunk.data["name"]
+        obj.posx = float(chunk.data["posx"])
+        obj.posy = float(chunk.data["posy"])
+
+        return obj
 
 
 @dataclass
