@@ -287,6 +287,7 @@ class Node(QObject):
         self.widget = NodeProxyWidget(self.uuid, input_infos, output_infos)
         self.widget.getWidget().setLabelText(self.label)
         self.widget.getWidget().setNameText(self.name)
+        self.widget.setPos(self.posx, self.posy)
         self.widget.positionChanged.connect(self.onWidgetPositionChanged)
         self.widget.selectionChanged.connect(self.onWidgetSelectionChanged)
 

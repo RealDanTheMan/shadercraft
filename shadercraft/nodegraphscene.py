@@ -67,6 +67,7 @@ class NodeGraphScene(QGraphicsScene):
         """
         assertRef(node)
         assertFalse(node in self.__nodes, "Node already present in the scene")
+        Log.debug(f"Adding new to the graph -> {node} @ {node.posx}x{node.posy}")
 
         self.assignNodeName(node)
         self.__nodes.append(node)
