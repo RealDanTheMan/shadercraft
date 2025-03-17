@@ -55,13 +55,7 @@ class NodeGraphSerialiser():
 
             Log.info(f"Serialising node -> {node}")
             chunk: JSONChunk = node.__class__.serialiseJSON(node)
-            node_data: dict = {}
-
-            node_data["classname"] = chunk.classname
-            node_data["version"] = str(chunk.version)
-            node_data["data"] = chunk.data
-
-            data["nodes"].append(node_data)
+            data["nodes"].append(JSONChunk.toJson(chunk))
 
         self.__buffer = json.dumps(data, indent=2)
 
