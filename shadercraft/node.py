@@ -7,6 +7,7 @@ from enum import Enum
 import logging as Log
 from PySide6.QtCore import QObject, QPointF, Slot, Signal
 
+from .identifiers import genUUID
 from .connection_widget import ConnectionWidget
 from .node_widget import NodeProxyWidget, NodePropetyInfo
 from .asserts import assertRef, assertTrue, assertType
@@ -34,7 +35,7 @@ class NodeValue:
 
 
 @dataclass
-class NodeIO:
+class NodeIO(ISerialisableJSON):
     """
     Class representing node inputs or outputs.
     Inputs and outputs is how we can connection nodes and build logic.
@@ -44,7 +45,7 @@ class NodeIO:
         assertType(name, str)
         assertType(label, str)
 
-        self.uuid: UUID = uuid4()
+        self.uuid: UUID = genUUID(__name__ + name)
         self.name: str = name
         self.label: str = label
 
@@ -52,8 +53,53 @@ class NodeIO:
         """Get minimal information representing this connection"""
         return NodePropetyInfo(self.uuid, self.label)
 
+    @classmethod
+    def serialiseJSON(cls, obj: object) -> JSONChunk:
+        """
+        ISerialisableJSON implementation.
+        Serialises this class to json data chunk.
 
-class NodeConnection():
+        """
+        assertType(obj, NodeIO)
+        assertType(obj.uuid, UUID)
+        assertType(obj.name, str)
+        assertType(obj.label, str)
+
+        data = {
+            "uuid"  : str(obj.uuid),
+            "name"  : obj.name,
+            "label"  : obj.label,
+        }
+
+        chunk: JSONChunk = JSONChunk(
+            data,
+            1,
+            cls.__name__
+        )
+
+        return chunk
+
+    @classmethod
+    def deserialiseJSON(cls, chunk: JSONChunk) -> object:
+        """
+        ISerialisableJSON implementation.
+        Deserialises given JSON chunk into class object
+
+        """
+        assertType(chunk, JSONChunk)
+        Log.debug(f"Deserialising nodeio class -> {cls}")
+
+        uuid: UUID = UUID(chunk.data["uuid"])
+        name: str = chunk.data["name"]
+        label: str = chunk.data["label"]
+
+        obj = NodeIO(name, label)
+        obj.uuid = uuid
+
+        return obj
+
+
+class NodeConnection(ISerialisableJSON):
     """Class representing singular connection between owner node and nother"""
 
     def __init__(self, src: Node, src_uuid: UUID, target: Node, target_uuid: UUID):
@@ -353,11 +399,21 @@ class Node(QObject, ISerialisableJSON):
         assertType(obj.posy, float)
 
         data = {
-            "uuid"  : str(obj.uuid),
-            "name"  : obj.name,
-            "posx"  : str(obj.posx),
-            "posy"  : str(obj.posy),
+            "uuid"      : str(obj.uuid),
+            "name"      : obj.name,
+            "posx"      : str(obj.posx),
+            "posy"      : str(obj.posy),
+            "inputs"    : [],
+            "outputs"   : []
         }
+
+        for node_in in obj.getNodeInputs():
+            input_chunk: JSONChunk = node_in.__class__.serialiseJSON(node_in)
+            data["inputs"].append(JSONChunk.toJson(input_chunk))
+
+        for node_out in obj.getNodeOutputs():
+            output_chunk: JSONChunk = node_out.__class__.serialiseJSON(node_out)
+            data["outputs"].append(JSONChunk.toJson(output_chunk))
 
         chunk: JSONChunk = JSONChunk(
             data,
