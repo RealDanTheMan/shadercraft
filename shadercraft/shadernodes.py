@@ -3,10 +3,12 @@ from enum import Enum
 from dataclasses import dataclass
 from uuid import UUID
 import textwrap
+import logging as Log
 
 from .asserts import assertRef, assertType, assertTrue
 from .node import Node, NodeValue, NodeIO
-from .vectors import Vec3F
+from .serialisation import JSONChunk
+from .vectors import Vec3F, Vec2F, Vec4F
 
 
 class ShaderValueHint(Enum):
@@ -43,6 +45,60 @@ class ShaderNodeIO(NodeIO):
         self.encoded_type: ShaderValueHint = encoded_type
         self.static_value: object = static_value
 
+    @classmethod
+    def serialiseJSON(cls, obj: object) -> JSONChunk:
+        """
+        ISerialisableJSON implementation.
+        Serialises this class to json data chunk.
+
+        """
+        chunk: JSONChunk = super().serialiseJSON(obj)
+        data: dict = {
+            "valuehint": str(obj.encoded_type.name),
+            "staticvalue": str(obj.static_value)
+        }
+
+        chunk.data.update(data)
+        return chunk
+
+    @classmethod
+    def deserialiseJSON(cls, chunk: JSONChunk) -> object:
+        """
+        ISerialisableJSON implementation.
+        Deserialises given JSON chunk into class object
+
+        """
+        assertType(chunk, JSONChunk)
+
+        uuid: UUID = UUID(chunk.data["uuid"])
+        name: str = chunk.data["name"]
+        label: str = chunk.data["label"]
+        hint: ShaderValueHint = ShaderValueHint[chunk.data["valuehint"]]
+        value_str: str = chunk.data["staticvalue"]
+
+        assertType(uuid, UUID)
+        assertType(name, str)
+        assertType(label, str)
+        assertType(hint, ShaderValueHint)
+        assertType(value_str, str)
+
+        value: object = None
+        if hint is ShaderValueHint.FLOAT:
+            value = float(value_str)
+        elif hint is ShaderValueHint.FLOAT2:
+            value = Vec2F.parse(value_str)
+        elif hint is ShaderValueHint.FLOAT3:
+            value = Vec3F.parse(value_str)
+        elif hint is ShaderValueHint.FLOAT4:
+            value = Vec4F.parse(value_str)
+        else:
+            raise NotImplementedError(f"Given shader value type is not implemented -> {hint}")
+
+        assertRef(value)
+        obj = ShaderNodeIO(name, label, hint, value)
+        obj.uuid = uuid
+
+        return obj
 
 class ShaderNodeBase(Node):
     """
@@ -54,6 +110,22 @@ class ShaderNodeBase(Node):
 
     def __init__(self) -> None:
         super().__init__()
+
+
+    @classmethod
+    def deserialiseJSON(cls, chunk: JSONChunk) -> object:
+        """
+
+        """
+        assertType(chunk, JSONChunk)
+        obj: Node = super().deserialiseJSON(chunk)
+
+        for input_data in chunk.data["inputs"]:
+            input_chunk: JSONChunk = JSONChunk.fromJson(input_data)
+            node_in: ShaderNodeIO = ShaderNodeIO.deserialiseJSON(input_chunk)
+            obj.getNodeInput(node_in.uuid).static_value = node_in.static_value
+
+        return obj
 
     def generateShaderCode(self) -> str:
         """
@@ -210,8 +282,8 @@ class MakeVec3Node(ShaderNodeBase):
 
         # Node Inputs
         self.input_x: ShaderNodeIO = ShaderNodeIO("Vec3InputX", "X", ShaderValueHint.FLOAT, 0.0)
-        self.input_y: ShaderNodeIO = ShaderNodeIO("Vec3InputX", "Y", ShaderValueHint.FLOAT, 0.0)
-        self.input_z: ShaderNodeIO = ShaderNodeIO("Vec3InputX", "Z", ShaderValueHint.FLOAT, 0.0)
+        self.input_y: ShaderNodeIO = ShaderNodeIO("Vec3InputY", "Y", ShaderValueHint.FLOAT, 0.0)
+        self.input_z: ShaderNodeIO = ShaderNodeIO("Vec3InputZ", "Z", ShaderValueHint.FLOAT, 0.0)
         self._registerInput(self.input_x)
         self._registerInput(self.input_y)
         self._registerInput(self.input_z)
