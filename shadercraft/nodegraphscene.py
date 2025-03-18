@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtCore import Signal, Slot, QObject, QPoint, Qt, QPointF
 
-from .node import Node, NodeConnection, NodeIO
+from .node import Node, NodeConnection, NodeIO, INodeGraphContext
 from .node_widget import NodeProxyWidget, NodePinShapeWidget
 from .connection_widget import ConnectionWidget
 from .shadernodes import FloatShaderNode, MulShaderNode
@@ -21,7 +21,7 @@ from .output_shadernodes import PhongOutputShaderNode
 from .asserts import assertRef, assertFalse, assertTrue
 
 
-class NodeGraphScene(QGraphicsScene):
+class NodeGraphScene(QGraphicsScene, INodeGraphContext):
     """
     Class that represents node graph scene.
     All the nodes and their connections are stored in the scene
@@ -70,6 +70,7 @@ class NodeGraphScene(QGraphicsScene):
         Log.debug(f"Adding new to the graph -> {node} @ {node.posx}x{node.posy}")
 
         self.__nodes.append(node)
+        node.bindGraphContext(self)
         node.selectionChanged.connect(self.onNodeSelectionChanged)
         node.connectionAdded.connect(self.onNodeConnectionAdded)
         node.connectionRemoved.connect(self.onNodeConnectionRemoved)
@@ -92,7 +93,7 @@ class NodeGraphScene(QGraphicsScene):
         out_cons: list[NodeConnection] = self.getNodeUpstreamConnections(node)
 
         for con in in_cons + out_cons:
-            con.target.removeConnection(con.uuid)
+            con.owner.removeConnection(con.uuid)
 
         # Remove the actual node
         self.__nodes.remove(node)
@@ -196,7 +197,7 @@ class NodeGraphScene(QGraphicsScene):
                 continue
             node_connections: list[NodeConnection] = inode.getAllConnections()
             for con in node_connections:
-                if con.source.uuid is node.uuid:
+                if con.source is node.uuid:
                     connections.append(con)
 
         return connections
@@ -362,7 +363,7 @@ class NodeGraphScene(QGraphicsScene):
             target_node.removeConnection(excon.uuid)
 
         # Create new connection
-        success: bool = target_node.addConnection(node_in.uuid, source_node, node_out.uuid)
+        success: bool = target_node.addConnection(source_node, node_in.uuid, node_out.uuid)
         if success:
             self.preview_redraw_requested.emit()
 

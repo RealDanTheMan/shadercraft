@@ -14,6 +14,19 @@ from .asserts import assertRef, assertTrue, assertType
 from .serialisation import JSONChunk, ISerialisableJSON
 
 
+class INodeGraphContext():
+    """
+    Interface class which exposes ability to query other nodes from within shared graph.
+
+    """
+    def getNodeFromUUID(self, uuid: UUID) -> Optional[Node]:
+        """
+        Get node matching given UUID
+
+        """
+        raise NotImplementedError("getNodeFromUUID interface member not implemented!")
+
+
 @dataclass
 class NodeValue:
     """
@@ -99,65 +112,122 @@ class NodeIO(ISerialisableJSON):
         return obj
 
 
-class NodeConnection(ISerialisableJSON):
-    """Class representing singular connection between owner node and nother"""
+class NodeConnection():
+    """
+    Class representing singular connection between owner node and nother
+    Logic flows from source output property to this connection input property.
 
-    def __init__(self, src: Node, src_uuid: UUID, target: Node, target_uuid: UUID):
-        assertRef(src)
-        assertRef(src_uuid)
-        assertRef(target)
-        assertRef(target_uuid)
+    """
 
-        self.uuid = uuid4()
-        self.source: Node = src
-        self.source_uuid: UUID = src_uuid
-        self.target: Node = target
-        self.target_uuid = target_uuid
-        self._widget: ConnectionWidget = self._createWidget()
 
-        self.source.positionChanged.connect(self.onConnectedNodePositionChanged)
-        self.target.positionChanged.connect(self.onConnectedNodePositionChanged)
+    def __init__(self, owner: Node, source: UUID, owner_prop: UUID, source_prop: UUID):
+        """
+        Default constructor.
+        Connection always originate from target property (output) to the owner property (input)
 
-    def _createWidget(self) -> ConnectionWidget:
-        """Create a widget representing this connection line on the graph"""
-        assertRef(self.source.getWidget())
-        assertRef(self.target.getWidget())
+        Properties:
+            owner (Node)        : Owner node of this connection
+            source (UUID)       : UUID of the node connected to this connection owner
+            owner_prop (UUID)   : UUID of connected owner property (input)
+            source_prop (UUID)  : UUID of connected source node property (output)
 
-        start: QPointF = self.source.getWidget().getPinScenePos(self.source_uuid)
-        end: QPointF = self.target.getWidget().getPinScenePos(self.target_uuid)
-        assertRef(start)
-        assertRef(end)
+        """
+        assertType(owner, Node)
+        assertType(owner_prop, UUID)
+        assertType(source, UUID)
+        assertType(source_prop, UUID)
+        assertRef(owner.getGraphContext())
 
-        widget = ConnectionWidget(self.uuid, start, end)
-        return widget
+        self.uuid: UUID = genUUID()
+        self.owner: Node = owner
+        self.owner_property: UUID = owner_prop
+        self.source: UUID = source
+        self.source_property: UUID = source_prop
+        self.__widget: ConnectionWidget = ConnectionWidget(self.uuid, QPointF(), QPointF())
+        self.updateConnectionPath()
+
+        source_node: Node = self.__getSourceNode()
+        assertRef(source_node)
+
+        source_node.positionChanged.connect(self.onConnectedNodePositionChanged)
+        owner.positionChanged.connect(self.onConnectedNodePositionChanged)
 
     def getWidget(self) -> ConnectionWidget:
-        """Get reference to widget linked to this node connection"""
-        return self._widget
+        """
+        Get reference to widget linked to this node connection.
+
+        """
+        return self.__widget
 
     def getSourceValue(self) -> Optional[NodeValue]:
-        """Get node value from source end of this connection"""
-        assertRef(self.source)
-        assertRef(self.source.uuid)
+        """
+        Get node value from source end of this connection
 
-        value = self.source.getNodeOutputValue(self.source_uuid)
-        assertRef(value)
-        return value
+        """
+        source_node: Node = self.__getSourceNode()
+        assertRef(source_node)
+
+        assertRef(self.source_property)
+        return source_node.getNodeOutputValue(self.source_property)
 
     @Slot(QPointF)
     def onConnectedNodePositionChanged(self, value: QPointF) -> None:
-        """Event handler invoked when either source or target node changes position"""
-        assertRef(self.getWidget())
-        assertRef(value)
-        assertRef(self.source.getWidget())
-        assertRef(self.target.getWidget())
+        """
+        Event handler invoked when either source or target node changes position.
 
-        start: QPointF = self.source.getWidget().getPinScenePos(self.source_uuid)
-        end: QPointF = self.target.getWidget().getPinScenePos(self.target_uuid)
+        """
+        self.updateConnectionPath()
+
+    def updateConnectionPath(self) -> None:
+        """
+        Update start and end position of this connection path.
+
+        """
+        source_widget: NodeProxyWidget = self.__getSourceNodeWidget()
+        owner_widget: NodeProxyWidget = self.__getOwnerNodeWidget()
+        assertType(source_widget, NodeProxyWidget)
+        assertType(owner_widget, NodeProxyWidget)
+
+        assertRef(self.owner_property)
+        assertRef(self.source_property)
+
+        start: QPointF = source_widget.getPinScenePos(self.source_property)
+        end: QPointF = owner_widget.getPinScenePos(self.owner_property)
         assertRef(start)
         assertRef(end)
 
         self.getWidget().updateConnectionPoints(start, end)
+
+    def __getOwnerNodeWidget(self) -> NodeProxyWidget:
+        """
+        Get handle to this connection owner node widget.
+
+        """
+        assertRef(self.owner)
+        return self.owner.getWidget()
+
+    def __getSourceNodeWidget(self) -> NodeProxyWidget:
+        """
+        Get handle to this connection source node widget.
+
+        """
+        assertRef(self.source)
+
+        source_node: Node = self.__getSourceNode()
+        assertRef(source_node)
+
+        return source_node.getWidget()
+
+    def __getSourceNode(self) -> Node:
+        """
+        Get handle to this connection source node.
+
+        """
+        assertRef(self.source, UUID)
+        assertRef(self.owner)
+        assertRef(self.owner.getGraphContext())
+
+        return self.owner.getGraphContext().getNodeFromUUID(self.source)
 
 
 class Node(QObject, ISerialisableJSON):
@@ -181,6 +251,7 @@ class Node(QObject, ISerialisableJSON):
         self.posx: float = 0.0
         self.posy: float = 0.0
 
+        self.__context: INodeGraphContext = None
         self.__outputs: dict[UUID, NodeIO] = {}
         self.__inputs: dict[UUID, NodeIO] = {}
         self.__connections: list[NodeConnection] = []
@@ -264,21 +335,29 @@ class Node(QObject, ISerialisableJSON):
         assertRef(node_output)
         return NodeValue.noValue()
 
-    def addConnection(self, uuid: UUID, src: Node, src_uuid: UUID) -> bool:
-        """Add new connection between this node intput and another node output."""
-        assertRef(uuid)
-        assertRef(src)
-        assertRef(src_uuid)
+    def addConnection(self, src: Node, property_uuid: UUID, src_property_uuid: UUID) -> bool:
+        """
+        Add new connection between this node intput and another node output.
 
-        if self.getConnection(uuid):
+        Properties:
+            property_uui (UUID) : UUID of the property of this node
+            src (Node) : Source node side of the connection
+            src_property_uuid (UUID): UUID of the porperty on the source node.
+
+        """
+        assertType(property_uuid, UUID)
+        assertType(src, Node)
+        assertType(src_property_uuid, UUID)
+
+        if self.getConnection(property_uuid):
             Log.debug("Connection rejected, connection already exists for this input")
             return False
 
-        if not self.canConnect(uuid, src, src_uuid):
+        if not self.canConnect(property_uuid, src, src_property_uuid):
             Log.debug("Connection has been rejected.")
             return False
 
-        con = NodeConnection(src, src_uuid, self, uuid)
+        con = NodeConnection(self, src.uuid, property_uuid, src_property_uuid)
         self.__connections.append(con)
         self.connectionAdded.emit(con)
 
@@ -318,7 +397,7 @@ class Node(QObject, ISerialisableJSON):
     def getConnectionFromInput(self, node_in: NodeIO) -> Optional[NodeConnection]:
         """Get connection on this node given input on this node forms traget of the connection"""
         for con in self.__connections:
-            if con.target_uuid == node_in.uuid:
+            if con.owner_property == node_in.uuid:
                 return con
         return None
 
@@ -370,12 +449,18 @@ class Node(QObject, ISerialisableJSON):
         self.positionChanged.emit(QPointF(x, y))
 
     def getDownstreamNodes(self) -> list[Node]:
-        """Recursively gets list of this node down stream descendants"""
+        """
+        Recursively gets list of this node down stream descendants
+
+        """
+        assertRef(self.getGraphContext())
+
         nodes: list[Node] = []
         for node_in in self.getNodeInputs():
             con: Optional[NodeConnection] = self.getConnectionFromInput(node_in)
             if con:
-                child_nodes: list[Node] = con.source.getDownstreamNodes()
+                source_node: Node = self.getGraphContext().getNodeFromUUID(con.source)
+                child_nodes: list[Node] = source_node.getDownstreamNodes()
                 nodes.extend(child_nodes)
         nodes.append(self)
         nodes = list(OrderedDict.fromkeys(nodes))
@@ -439,6 +524,21 @@ class Node(QObject, ISerialisableJSON):
         obj.posy = float(chunk.data["posy"])
 
         return obj
+
+    def bindGraphContext(self, context: INodeGraphContext) -> None:
+        """
+        Bind new graph context for this node.
+
+        """
+        assertType(context, INodeGraphContext)
+        self.__context = context
+
+    def getGraphContext(self) -> Optional[INodeGraphContext]:
+        """
+        Get handle to this node graph context.
+
+        """
+        return self.__context
 
 
 @dataclass
