@@ -120,37 +120,64 @@ class NodeConnection():
     """
 
 
-    def __init__(self, owner: Node, source: UUID, owner_prop: UUID, source_prop: UUID):
+    def __init__(self, owner: UUID, source: UUID, owner_prop: UUID, source_prop: UUID):
         """
         Default constructor.
         Connection always originate from target property (output) to the owner property (input)
 
         Properties:
-            owner (Node)        : Owner node of this connection
+            owner (UUID)        : UUID of the owner node of this connection
             source (UUID)       : UUID of the node connected to this connection owner
             owner_prop (UUID)   : UUID of connected owner property (input)
             source_prop (UUID)  : UUID of connected source node property (output)
 
         """
-        assertType(owner, Node)
+        assertType(owner, UUID)
         assertType(owner_prop, UUID)
         assertType(source, UUID)
         assertType(source_prop, UUID)
-        assertRef(owner.getGraphContext())
 
+        self.__graph_context: INodeGraphContext = None
         self.uuid: UUID = genUUID()
-        self.owner: Node = owner
+        self.owner: UUID = owner
         self.owner_property: UUID = owner_prop
         self.source: UUID = source
         self.source_property: UUID = source_prop
         self.__widget: ConnectionWidget = ConnectionWidget(self.uuid, QPointF(), QPointF())
+
+    def __registerNodeEvents(self) -> None:
+        """
+        Registers position changed event handler to with the nodes on each end of the connection.
+
+        """
+        assertRef(self.owner)
+        assertRef(self.source)
+
+        owner_node: Node = self.getOwnerNode()
+        source_node: Node = self.getSourceNode()
+
+        assertType(owner_node, Node)
+        owner_node.positionChanged.connect(self.onConnectedNodePositionChanged)
+
+        assertType(source_node, Node)
+        source_node.positionChanged.connect(self.onConnectedNodePositionChanged)
+
+    def bindGraphContext(self, context: INodeGraphContext) -> None:
+        """
+        Bind new graph context for this node connection.
+
+        """
+        assertType(context, INodeGraphContext)
+        self.__graph_context = context
+        self.__registerNodeEvents()
         self.updateConnectionPath()
 
-        source_node: Node = self.__getSourceNode()
-        assertRef(source_node)
+    def getGraphContext(self) -> Optional[INodeGraphContext]:
+        """
+        Get handle to this node connection graph context.
 
-        source_node.positionChanged.connect(self.onConnectedNodePositionChanged)
-        owner.positionChanged.connect(self.onConnectedNodePositionChanged)
+        """
+        return self.__graph_context
 
     def getWidget(self) -> ConnectionWidget:
         """
@@ -164,7 +191,7 @@ class NodeConnection():
         Get node value from source end of this connection
 
         """
-        source_node: Node = self.__getSourceNode()
+        source_node: Node = self.getSourceNode()
         assertRef(source_node)
 
         assertRef(self.source_property)
@@ -183,8 +210,8 @@ class NodeConnection():
         Update start and end position of this connection path.
 
         """
-        source_widget: NodeProxyWidget = self.__getSourceNodeWidget()
-        owner_widget: NodeProxyWidget = self.__getOwnerNodeWidget()
+        source_widget: NodeProxyWidget = self.getSourceNodeWidget()
+        owner_widget: NodeProxyWidget = self.getOwnerNodeWidget()
         assertType(source_widget, NodeProxyWidget)
         assertType(owner_widget, NodeProxyWidget)
 
@@ -198,36 +225,41 @@ class NodeConnection():
 
         self.getWidget().updateConnectionPoints(start, end)
 
-    def __getOwnerNodeWidget(self) -> NodeProxyWidget:
+    def getOwnerNode(self) -> Node:
+        """
+        Get node handle from the owner of this connection (input).
+
+        """
+        assertRef(self.owner)
+        assertRef(self.getGraphContext())
+
+        return self.getGraphContext().getNodeFromUUID(self.owner)
+
+    def getSourceNode(self) -> Node:
+        """
+        Get node handle from the source of this connection (output).
+
+        """
+        assertRef(self.source)
+        assertRef(self.getGraphContext())
+
+        return self.getGraphContext().getNodeFromUUID(self.source)
+
+    def getOwnerNodeWidget(self) -> NodeProxyWidget:
         """
         Get handle to this connection owner node widget.
 
         """
         assertRef(self.owner)
-        return self.owner.getWidget()
+        return self.getOwnerNode().getWidget()
 
-    def __getSourceNodeWidget(self) -> NodeProxyWidget:
+    def getSourceNodeWidget(self) -> NodeProxyWidget:
         """
         Get handle to this connection source node widget.
 
         """
         assertRef(self.source)
-
-        source_node: Node = self.__getSourceNode()
-        assertRef(source_node)
-
-        return source_node.getWidget()
-
-    def __getSourceNode(self) -> Node:
-        """
-        Get handle to this connection source node.
-
-        """
-        assertRef(self.source, UUID)
-        assertRef(self.owner)
-        assertRef(self.owner.getGraphContext())
-
-        return self.owner.getGraphContext().getNodeFromUUID(self.source)
+        return self.getSourceNode().getWidget()
 
 
 class Node(QObject, ISerialisableJSON):
@@ -348,6 +380,7 @@ class Node(QObject, ISerialisableJSON):
         assertType(property_uuid, UUID)
         assertType(src, Node)
         assertType(src_property_uuid, UUID)
+        assertRef(self.getGraphContext())
 
         if self.getConnection(property_uuid):
             Log.debug("Connection rejected, connection already exists for this input")
@@ -357,7 +390,8 @@ class Node(QObject, ISerialisableJSON):
             Log.debug("Connection has been rejected.")
             return False
 
-        con = NodeConnection(self, src.uuid, property_uuid, src_property_uuid)
+        con = NodeConnection(self.uuid, src.uuid, property_uuid, src_property_uuid)
+        con.bindGraphContext(self.getGraphContext())
         self.__connections.append(con)
         self.connectionAdded.emit(con)
 
@@ -532,6 +566,10 @@ class Node(QObject, ISerialisableJSON):
         """
         assertType(context, INodeGraphContext)
         self.__context = context
+
+        # Ensure child connection also share the same graph context handle.
+        for con in self.getAllConnections():
+            con.bindGraphContext(context)
 
     def getGraphContext(self) -> Optional[INodeGraphContext]:
         """

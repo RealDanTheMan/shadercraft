@@ -93,7 +93,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         out_cons: list[NodeConnection] = self.getNodeUpstreamConnections(node)
 
         for con in in_cons + out_cons:
-            con.owner.removeConnection(con.uuid)
+            con.getOwnerNode().removeConnection(con.uuid)
 
         # Remove the actual node
         self.__nodes.remove(node)
