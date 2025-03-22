@@ -33,6 +33,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         """Default constructor"""
         super().__init__()
         self.__nodes: list[Node] = []
+        self.__connections: list[NodeConnection] = []
         self.__names: list[str] = []
         self.__names_lookup: dict[str, int] = {}
         self.__drag_pin: Optional[UUID] = None
@@ -69,15 +70,16 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         assertFalse(node in self.__nodes, "Node already present in the scene")
         Log.debug(f"Adding new to the graph -> {node} @ {node.posx}x{node.posy}")
 
-        self.__nodes.append(node)
-        node.bindGraphContext(self)
-        node.selectionChanged.connect(self.onNodeSelectionChanged)
-        node.connectionAdded.connect(self.onNodeConnectionAdded)
-        node.connectionRemoved.connect(self.onNodeConnectionRemoved)
         if node.getWidget() is None:
             node.initWidget()
 
+        node.bindGraphContext(self)
+        self.__nodes.append(node)
         self.addItem(node.getWidget())
+
+        node.selectionChanged.connect(self.onNodeSelectionChanged)
+        node.connectionAdded.connect(self.onNodeConnectionAdded)
+        node.connectionRemoved.connect(self.onNodeConnectionRemoved)
         Log.info(f"NodeGraphScene: Adding new node -> {node.uuid}")
 
     def deleteNode(self, node: Node) -> None:
@@ -93,6 +95,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         out_cons: list[NodeConnection] = self.getNodeUpstreamConnections(node)
 
         for con in in_cons + out_cons:
+            self.removeNodeConnection(con)
             con.getOwnerNode().removeConnection(con.uuid)
 
         # Remove the actual node
@@ -106,6 +109,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         
         """
         for node in self.getAllNodes():
+            self.removeItem(node.getWidget())
             self.deleteNode(node)
 
     def deleteSelectedNode(self) -> bool:
@@ -132,6 +136,39 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         node1.setPosition(300.0, -100.0)
         node2.setPosition(0.0, 0.0)
         node3.setPosition(500.0, 0.0)
+
+    def addNodeConnection(self, connection: NodeConnection) -> None:
+        """
+        Add node connection to this graph.
+
+        """
+        assertRef(connection)
+        assertRef(connection.getWidget)
+
+        connection.bindGraphContext(self)
+        self.__connections.append(connection)
+        self.addItem(connection.getWidget())
+
+    def removeNodeConnection(self, connection: NodeConnection) -> None:
+        """
+        Removes existing node connection from this node graph scene.
+
+        """
+        self.removeItem(connection.getWidget())
+        self.__connections.removeItem(connection)
+        connection.bindGraphContext(None)
+
+    def removeAllNodeConnections(self) -> None:
+        """
+        Removes all existing node connections from the scene.
+        Individual nodes will still retain connection information but it will no longer be
+        part of this node graphs scene.
+
+        """
+        for connection in self.__connections:
+            self.removeItem(connection.getWidget())
+
+        self.__connections.clear()
 
     def getAllNodes(self) -> list[Node]:
         """Get list of all nodes present in the graph"""
@@ -371,9 +408,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
 
     def onNodeConnectionAdded(self, connection: NodeConnection) -> None:
         """Event handler invoked when new connection between two nodes happens in the graph"""
-        assertRef(connection)
-        assertRef(connection.getWidget)
-        self.addItem(connection.getWidget())
+        self.addNodeConnection(connection)
 
     def onNodeConnectionRemoved(self, connection: NodeConnection) -> None:
         """Event handler invoked when existing connection between nodes is severed"""
@@ -394,3 +429,11 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
             Log.debug("Clearing selected node")
             self.__selected_node = None
         self.selected_node_changed.emit(self.__selected_node)
+
+    def clearAll(self) -> None:
+        """
+        Removes all content from the scene.
+
+        """
+        self.removeAllNodeConnections()
+        self.deleteAllNodes()
