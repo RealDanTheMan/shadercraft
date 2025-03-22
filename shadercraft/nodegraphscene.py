@@ -155,7 +155,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
 
         """
         self.removeItem(connection.getWidget())
-        self.__connections.removeItem(connection)
+        self.__connections.remove(connection)
         connection.bindGraphContext(None)
 
     def removeAllNodeConnections(self) -> None:
