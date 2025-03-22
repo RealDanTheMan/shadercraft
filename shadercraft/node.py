@@ -112,13 +112,12 @@ class NodeIO(ISerialisableJSON):
         return obj
 
 
-class NodeConnection():
+class NodeConnection(ISerialisableJSON):
     """
     Class representing singular connection between owner node and nother
     Logic flows from source output property to this connection input property.
 
     """
-
 
     def __init__(self, owner: UUID, source: UUID, owner_prop: UUID, source_prop: UUID):
         """
@@ -167,10 +166,10 @@ class NodeConnection():
         Bind new graph context for this node connection.
 
         """
-        assertType(context, INodeGraphContext)
         self.__graph_context = context
-        self.__registerNodeEvents()
-        self.updateConnectionPath()
+        if self.__graph_context is not None:
+            self.__registerNodeEvents()
+            self.updateConnectionPath()
 
     def getGraphContext(self) -> Optional[INodeGraphContext]:
         """
@@ -261,6 +260,67 @@ class NodeConnection():
         assertRef(self.source)
         return self.getSourceNode().getWidget()
 
+    @classmethod
+    def serialiseJSON(cls, obj: object) -> JSONChunk:
+        """
+        ISerialisableJSON implementation.
+        Serialises this class to json data chunk.
+
+        """
+        assertType(obj, NodeConnection)
+        assertRef(obj.uuid)
+        assertRef(obj.owner)
+        assertRef(obj.owner_property)
+        assertRef(obj.source)
+        assertRef(obj.source_property)
+
+        data = {
+            "uuid"  : str(obj.uuid),
+            "owner_node"  : str(obj.owner),
+            "owner_property"  : str(obj.owner_property),
+            "source_node"  : str(obj.source),
+            "source_property"  : str(obj.source_property),
+        }
+
+        chunk: JSONChunk = JSONChunk(
+            data,
+            1,
+            cls.__name__
+        )
+
+        return chunk
+
+    @classmethod
+    def deserialiseJSON(cls, chunk: JSONChunk) -> object:
+        """
+        ISerialisableJSON implementation.
+        Deserialises given JSON chunk into class object
+
+        """
+        assertType(chunk, JSONChunk)
+        Log.debug(f"Deserialising nodeio class -> {cls}")
+
+        assertTrue("uuid" in chunk.data)
+        assertTrue("owner_node" in chunk.data)
+        assertTrue("owner_property" in chunk.data)
+        assertTrue("source_node" in chunk.data)
+        assertTrue("source_property" in chunk.data)
+
+        uuid: UUID = UUID(chunk.data["uuid"])
+        owner: UUID = UUID(chunk.data["owner_node"])
+        owner_property: UUID = UUID(chunk.data["owner_property"])
+        source: UUID = UUID(chunk.data["source_node"])
+        source_property: UUID = UUID(chunk.data["source_property"])
+
+        obj: NodeConnection = NodeConnection(
+            owner,
+            source,
+            owner_property,
+            source_property
+        )
+
+        obj.uuid = uuid
+        return obj
 
 class Node(QObject, ISerialisableJSON):
     """
@@ -391,11 +451,19 @@ class Node(QObject, ISerialisableJSON):
             return False
 
         con = NodeConnection(self.uuid, src.uuid, property_uuid, src_property_uuid)
-        con.bindGraphContext(self.getGraphContext())
-        self.__connections.append(con)
-        self.connectionAdded.emit(con)
+        self.__injectConnection(con)
 
         return True
+
+    def __injectConnection(self, connection: NodeConnection) -> None:
+        """
+        Inserts connection object into this node.
+
+        """
+        assertType(connection, NodeConnection)
+        connection.bindGraphContext(self.getGraphContext())
+        self.__connections.append(connection)
+        self.connectionAdded.emit(connection)
 
     def removeConnection(self, uuid: UUID) -> None:
         """Remove node connection matching given UUID"""
@@ -424,7 +492,7 @@ class Node(QObject, ISerialisableJSON):
     def getConnection(self, uuid: UUID) -> Optional[NodeConnection]:
         """Get connection on this node that matches given UUID"""
         for con in self.__connections:
-            if con.uuid == uuid:
+            if con.owner_property == uuid:
                 return con
         return None
 
@@ -518,17 +586,23 @@ class Node(QObject, ISerialisableJSON):
         assertType(obj.posy, float)
 
         data = {
-            "uuid"      : str(obj.uuid),
-            "name"      : obj.name,
-            "posx"      : str(obj.posx),
-            "posy"      : str(obj.posy),
-            "inputs"    : [],
-            "outputs"   : []
+            "uuid"          : str(obj.uuid),
+            "name"          : obj.name,
+            "posx"          : str(obj.posx),
+            "posy"          : str(obj.posy),
+            "inputs"        : [],
+            "outputs"       : [],
+            "connections"   : []
         }
 
         for node_in in obj.getNodeInputs():
             input_chunk: JSONChunk = node_in.__class__.serialiseJSON(node_in)
             data["inputs"].append(JSONChunk.toJson(input_chunk))
+
+            con: NodeConnection = obj.getConnection(node_in.uuid)
+            if con is not None:
+                connection_chunk: JSONChunk = NodeConnection.serialiseJSON(con)
+                data["connections"].append(JSONChunk.toJson(connection_chunk))
 
         for node_out in obj.getNodeOutputs():
             output_chunk: JSONChunk = node_out.__class__.serialiseJSON(node_out)
@@ -557,6 +631,11 @@ class Node(QObject, ISerialisableJSON):
         obj.posx = float(chunk.data["posx"])
         obj.posy = float(chunk.data["posy"])
 
+        for connection_data in chunk.data["connections"]:
+            connection_chunk: JSONChunk = JSONChunk.fromJson(connection_data)
+            connection: NodeConnection = NodeConnection.deserialiseJSON(connection_chunk)
+            obj.__injectConnection(connection)
+
         return obj
 
     def bindGraphContext(self, context: INodeGraphContext) -> None:
@@ -564,12 +643,7 @@ class Node(QObject, ISerialisableJSON):
         Bind new graph context for this node.
 
         """
-        assertType(context, INodeGraphContext)
         self.__context = context
-
-        # Ensure child connection also share the same graph context handle.
-        for con in self.getAllConnections():
-            con.bindGraphContext(context)
 
     def getGraphContext(self) -> Optional[INodeGraphContext]:
         """

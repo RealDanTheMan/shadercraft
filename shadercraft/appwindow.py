@@ -263,7 +263,7 @@ class AppWindow(QMainWindow):
         """
         Log.debug("Attempting to load node graph from disk.")
 
-        self.graph_scene.clear()
+        self.graph_scene.clearAll()
         source:tuple[str, str] = QFileDialog.getOpenFileName(self, "Open File", filter="*.scg")
         if source is not None and len(source) > 0:
             filepath: str = source[0]
@@ -273,10 +273,17 @@ class AppWindow(QMainWindow):
             serialiser: NodeGraphSerialiser = NodeGraphSerialiser([])
             serialiser.read(filepath)
             serialiser.deserialise()
-
             nodes: list[Node] = serialiser.getNodes()
+
+            # First add all the nodes, then add connection to ensure both ends of connection nodes
+            # are present in the node graph scene.
             for node in nodes:
                 self.graph_scene.addNode(node)
+            for node in nodes:
+                for connection in node.getAllConnections():
+                    self.graph_scene.addNodeConnection(connection)
+
+            self.onPreviewRedrawRequested()
             Log.info(f"Loaded {len(nodes)} nodes")
 
 
