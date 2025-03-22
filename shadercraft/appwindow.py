@@ -10,7 +10,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QTextEdit,
     QFrame,
-    QFileDialog
+    QFileDialog,
+    QMessageBox
 )
 
 from .shadernodes import (
@@ -244,14 +245,10 @@ class AppWindow(QMainWindow):
             if filepath is None or len(filepath) == 0:
                 return
 
-            if not os.path.exists(filepath):
-                nodes: list[Node] = self.graph_scene.getAllNodes()
-                serialiser: NodeGraphSerialiser = NodeGraphSerialiser(nodes)
-                serialiser.serialise()
-                serialiser.write(destination[0])
-            else:
-                # TODO: Handle overwriting files and readonly flags.
-                Log.error(f"Node graph file already exists, aborting -> {filepath}")
+            nodes: list[Node] = self.graph_scene.getAllNodes()
+            serialiser: NodeGraphSerialiser = NodeGraphSerialiser(nodes)
+            serialiser.serialise()
+            serialiser.write(destination[0])
 
         return
 
@@ -263,13 +260,16 @@ class AppWindow(QMainWindow):
         """
         Log.debug("Attempting to load node graph from disk.")
 
-        self.graph_scene.clearAll()
         source:tuple[str, str] = QFileDialog.getOpenFileName(self, "Open File", filter="*.scg")
         if source is not None and len(source) > 0:
             filepath: str = source[0]
             if filepath is None or len(filepath) == 0:
                 return
 
+            if not self.showQueryDialog("Are you sure you want to close current graph?"):
+                return
+
+            self.graph_scene.clearAll()
             serialiser: NodeGraphSerialiser = NodeGraphSerialiser([])
             serialiser.read(filepath)
             serialiser.deserialise()
@@ -285,6 +285,27 @@ class AppWindow(QMainWindow):
 
             self.onPreviewRedrawRequested()
             Log.info(f"Loaded {len(nodes)} nodes")
+
+    def showQueryDialog(self, message: str) -> bool:
+        """
+        Display query message box which allows the user to okay or cancel action.
+
+        Paremeters:
+            message (str) : Message text to display in hte dialog
+
+        Returns True if user clicked OK, False otherwise
+
+        """
+        dialog: QMessageBox = QMessageBox(parent=self)
+        dialog.setWindowTitle("Confirm")
+        dialog.setText(message)
+        dialog.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        dialog.setIcon(QMessageBox.Question)
+
+        result = dialog.exec()
+        if result == QMessageBox.Ok:
+            return True
+        return False
 
 
     @staticmethod
