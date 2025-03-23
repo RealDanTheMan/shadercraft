@@ -62,6 +62,7 @@ class AppWindow(QMainWindow):
         self._initPropertyPanel()
         self._initPreviewViewport()
 
+        self.ui.actionSave.triggered.connect(self.onSaveCurrent)
         self.ui.actionSave_As.triggered.connect(self.onSaveAs)
         self.ui.actionOpen.triggered.connect(self.onOpenFile)
         self.ui.actionGenerate_Shader_Code.triggered.connect(self.onGenerateShaderCode)
@@ -248,9 +249,28 @@ class AppWindow(QMainWindow):
             nodes: list[Node] = self.graph_scene.getAllNodes()
             serialiser: NodeGraphSerialiser = NodeGraphSerialiser(nodes)
             serialiser.serialise()
-            serialiser.write(destination[0])
+            serialiser.write(filepath)
+            self.graph_scene.filepath = filepath
 
         return
+
+    def onSaveCurrent(self) -> None:
+        """
+        Event handler invoked when the user clicks on the save option from the file menu.
+        Allows the user to save active node graph to its existing location.
+
+        """
+        Log.debug("Attempting to save current node graph from disk.")
+
+        filepath: str = self.graph_scene.filepath
+        if filepath is None or not os.path.exists(filepath):
+            self.onSaveAs()
+            return
+
+        nodes: list[Node] = self.graph_scene.getAllNodes()
+        serialiser: NodeGraphSerialiser = NodeGraphSerialiser(nodes)
+        serialiser.serialise()
+        serialiser.write(filepath)
 
     def onOpenFile(self) -> None:
         """
@@ -283,6 +303,7 @@ class AppWindow(QMainWindow):
                 for connection in node.getAllConnections():
                     self.graph_scene.addNodeConnection(connection)
 
+            self.graph_scene.filepath = filepath
             self.onPreviewRedrawRequested()
             Log.info(f"Loaded {len(nodes)} nodes")
 

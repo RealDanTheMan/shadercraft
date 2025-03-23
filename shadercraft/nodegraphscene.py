@@ -46,6 +46,8 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         self.__drag_drop_preview: Optional[ConnectionWidget] = None
         self.__selected_node: Optional[Node] = None
 
+        self.filepath: str = None
+
     def getView(self) -> Optional[QGraphicsView]:
         """Get handle to the first view which this scene is bound to"""
         if len(self.views()) > 0:
