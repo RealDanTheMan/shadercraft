@@ -62,6 +62,7 @@ class AppWindow(QMainWindow):
         self._initPropertyPanel()
         self._initPreviewViewport()
 
+        self.ui.actionNew.triggered.connect(self.onNewScene)
         self.ui.actionSave.triggered.connect(self.onSaveCurrent)
         self.ui.actionSave_As.triggered.connect(self.onSaveAs)
         self.ui.actionOpen.triggered.connect(self.onOpenFile)
@@ -232,6 +233,20 @@ class AppWindow(QMainWindow):
         self.property_panel.setActiveNode(node)
         self.property_panel.fetchNodeValues()
 
+    def onNewScene(self) -> None:
+        """
+        Event handler invoked when the user clicks on 'New' option from the file menu.
+        Allows the user to discard current node graph contents and create new blank graph.
+
+        """
+        assertRef(self.graph_scene)
+        Log.debug("Attempting to create new blank shader graph scene")
+
+        if self.showQueryDialog("Are you sure you want to discard current graph contens?"):
+            self.graph_scene.clearAll()
+            self.graph_scene.addDefaultNodes()
+            self.graph_scene.filepath = None
+
     def onSaveAs(self) -> None:
         """
         Event handler invoked when the user clicks on save as option from the file menu.
@@ -260,6 +275,7 @@ class AppWindow(QMainWindow):
         Allows the user to save active node graph to its existing location.
 
         """
+        assertRef(self.graph_scene)
         Log.debug("Attempting to save current node graph from disk.")
 
         filepath: str = self.graph_scene.filepath

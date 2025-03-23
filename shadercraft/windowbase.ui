@@ -191,6 +191,7 @@
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionNew"/>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="actionSave_As"/>
@@ -209,20 +210,49 @@
    <property name="text">
     <string>Open</string>
    </property>
+   <property name="toolTip">
+    <string>Open existing shader graph</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
   </action>
   <action name="actionSave">
    <property name="text">
     <string>Save</string>
+   </property>
+   <property name="toolTip">
+    <string>Save current shader graph to its existing file</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
   </action>
   <action name="actionSave_As">
    <property name="text">
     <string>Save As</string>
    </property>
+   <property name="toolTip">
+    <string>Save current shader graph to new file</string>
+   </property>
   </action>
   <action name="actionGenerate_Shader_Code">
    <property name="text">
     <string>Generate Shader Code</string>
+   </property>
+  </action>
+  <action name="actionNew">
+   <property name="text">
+    <string>New</string>
+   </property>
+   <property name="toolTip">
+    <string>Create new blank shader graph</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+   <property name="priority">
+    <enum>QAction::Priority::HighPriority</enum>
    </property>
   </action>
  </widget>
