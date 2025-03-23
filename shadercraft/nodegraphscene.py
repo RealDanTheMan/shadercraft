@@ -19,6 +19,7 @@ from .connection_widget import ConnectionWidget
 from .shadernodes import FloatShaderNode, MulShaderNode
 from .output_shadernodes import PhongOutputShaderNode
 from .asserts import assertRef, assertFalse, assertTrue
+from .apputils import NameDeduplicator
 
 
 class NodeGraphScene(QGraphicsScene, INodeGraphContext):
@@ -32,6 +33,8 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
     def __init__(self):
         """Default constructor"""
         super().__init__()
+
+        self.__name_generator: NameDeduplicator = NameDeduplicator()
         self.__nodes: list[Node] = []
         self.__connections: list[NodeConnection] = []
         self.__names: list[str] = []
@@ -70,6 +73,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         assertFalse(node in self.__nodes, "Node already present in the scene")
         Log.debug(f"Adding new to the graph -> {node} @ {node.posx}x{node.posy}")
 
+        node.name = self.__name_generator.registerName(node.name)
         if node.getWidget() is None:
             node.initWidget()
 
@@ -88,15 +92,17 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         Any connection to or from the node will be removed as well.
         """
         assertTrue(node in self.__nodes, "Node does not exists within the node graph!")
-        Log.info(f"Removing node from node graph: {node.uuid}")
+        Log.info(f"Removing node from node graph: '{node.name}' @ {node.uuid}")
+
+        self.__name_generator.deregisterName(node.name)
 
         # Remove active connections to given node
         in_cons: list[NodeConnection] = self.getNodeDownstreamConnections(node)
         out_cons: list[NodeConnection] = self.getNodeUpstreamConnections(node)
 
         for con in in_cons + out_cons:
-            self.removeNodeConnection(con)
             con.getOwnerNode().removeConnection(con.uuid)
+            self.removeNodeConnection(con)
 
         # Remove the actual node
         self.__nodes.remove(node)
@@ -109,7 +115,6 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         
         """
         for node in self.getAllNodes():
-            self.removeItem(node.getWidget())
             self.deleteNode(node)
 
     def deleteSelectedNode(self) -> bool:
@@ -154,6 +159,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         Removes existing node connection from this node graph scene.
 
         """
+        connection.getOwnerNode().removeConnection((connection.uuid))
         self.removeItem(connection.getWidget())
         self.__connections.remove(connection)
         connection.bindGraphContext(None)
@@ -435,5 +441,6 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         Removes all content from the scene.
 
         """
-        self.removeAllNodeConnections()
         self.deleteAllNodes()
+        self.removeAllNodeConnections()
+        self.__name_generator.reset()
