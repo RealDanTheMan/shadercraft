@@ -18,7 +18,7 @@ from .node_widget import NodeProxyWidget, NodePinShapeWidget
 from .connection_widget import ConnectionWidget
 from .shadernodes import FloatShaderNode, MulShaderNode
 from .output_shadernodes import PhongOutputShaderNode
-from .asserts import assertRef, assertFalse, assertTrue
+from .asserts import assertRef, assertFalse, assertTrue, assertType
 from .apputils import NameDeduplicator
 
 
@@ -82,8 +82,6 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         self.addItem(node.getWidget())
 
         node.selectionChanged.connect(self.onNodeSelectionChanged)
-        node.connectionAdded.connect(self.onNodeConnectionAdded)
-        node.connectionRemoved.connect(self.onNodeConnectionRemoved)
         Log.info(f"NodeGraphScene: Adding new node -> {node.uuid}")
 
     def deleteNode(self, node: Node) -> None:
@@ -101,7 +99,6 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         out_cons: list[NodeConnection] = self.getNodeUpstreamConnections(node)
 
         for con in in_cons + out_cons:
-            con.getOwnerNode().removeConnection(con.uuid)
             self.removeNodeConnection(con)
 
         # Remove the actual node
@@ -159,10 +156,15 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         Removes existing node connection from this node graph scene.
 
         """
+        assertType(connection, NodeConnection)
+
+        # Disconnect the connection from the parent node first.
         connection.getOwnerNode().removeConnection((connection.uuid))
+        connection.bindGraphContext(None)
+
+        # Remove the connection from the graph scene.
         self.removeItem(connection.getWidget())
         self.__connections.remove(connection)
-        connection.bindGraphContext(None)
 
     def removeAllNodeConnections(self) -> None:
         """
@@ -287,7 +289,7 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
                 if node_input is not None:
                     con: NodeConnection = node.getConnectionFromInput(node_input)
                     if con is not None:
-                        node.removeConnection(con.uuid)
+                        self.removeNodeConnection(con)
                         event.accept()
                         return
 
@@ -403,26 +405,15 @@ class NodeGraphScene(QGraphicsScene, INodeGraphContext):
         # Remove existing connection if one is present
         excon: NodeConnection = target_node.getConnectionFromInput(node_in)
         if excon is not None:
-            target_node.removeConnection(excon.uuid)
+            self.removeNodeConnection(excon)
 
         # Create new connection
         success: bool = target_node.addConnection(source_node, node_in.uuid, node_out.uuid)
         if success:
+            self.addNodeConnection(target_node.getConnectionFromInput(node_in))
             self.preview_redraw_requested.emit()
 
         return success
-
-    def onNodeConnectionAdded(self, connection: NodeConnection) -> None:
-        """Event handler invoked when new connection between two nodes happens in the graph"""
-        self.addNodeConnection(connection)
-
-    def onNodeConnectionRemoved(self, connection: NodeConnection) -> None:
-        """Event handler invoked when existing connection between nodes is severed"""
-        assertRef(connection)
-        assertRef(connection.getWidget())
-
-        self.removeItem(connection.getWidget())
-        self.preview_redraw_requested.emit()
 
     def onNodeSelectionChanged(self, node: QObject, selected: bool) -> None:
         """Event handler invoked when selection state changes on any of the nodes"""

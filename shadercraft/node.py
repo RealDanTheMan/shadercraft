@@ -442,7 +442,7 @@ class Node(QObject, ISerialisableJSON):
         assertType(src_property_uuid, UUID)
         assertRef(self.getGraphContext())
 
-        if self.getConnection(property_uuid):
+        if self.getConnectionByProperty(property_uuid):
             Log.debug("Connection rejected, connection already exists for this input")
             return False
 
@@ -466,13 +466,29 @@ class Node(QObject, ISerialisableJSON):
         self.connectionAdded.emit(connection)
 
     def removeConnection(self, uuid: UUID) -> None:
-        """Remove node connection matching given UUID"""
-        assertRef(uuid)
+        """
+        Remove node connection matching given UUID
+
+        """
+        assertType(uuid, UUID)
         con: NodeConnection = self.getConnection(uuid)
         if con is not None:
             Log.debug(f"Removing node connection: {uuid}")
             self.__connections.remove(con)
             self.connectionRemoved.emit(con)
+
+    def removePropertyConnection(self, property_uuid: UUID) -> None:
+        """
+        Remove connection which is connected to property matching given UUID.
+
+        """
+        assertType(property_uuid, UUID)
+
+        connection: NodeConnection = self.getConnectionByProperty(property_uuid)
+        if connection is not None:
+            Log.debug(f"Removing node property connection -> {connection.uuid}")
+            self.__connections.remove(connection)
+            self.connectionRemoved.emit(connection)
 
     def canConnect(self, uuid: UUID, src_node: Node, src_uuid: UUID) -> bool:
         """
@@ -490,18 +506,33 @@ class Node(QObject, ISerialisableJSON):
         return True
 
     def getConnection(self, uuid: UUID) -> Optional[NodeConnection]:
-        """Get connection on this node that matches given UUID"""
+        """
+        Get this node connection which matches given UUID.
+
+        """
         for con in self.__connections:
-            if con.owner_property == uuid:
+            if con.uuid == uuid:
+                return con
+        return None
+
+    def getConnectionByProperty(self, property_uuid: UUID) -> Optional[NodeConnection]:
+        """
+        Get this node connection which is connected to property of given UUID.
+
+        """
+        for con in self.__connections:
+            if con.owner_property == property_uuid:
                 return con
         return None
 
     def getConnectionFromInput(self, node_in: NodeIO) -> Optional[NodeConnection]:
-        """Get connection on this node given input on this node forms traget of the connection"""
-        for con in self.__connections:
-            if con.owner_property == node_in.uuid:
-                return con
-        return None
+        """
+        Get connection on this node given input on this node forms traget of the connection
+
+        """
+        assertType(node_in, NodeIO)
+        return self.getConnectionByProperty(node_in.uuid)
+
 
     def getAllConnections(self) -> list[NodeConnection]:
         """Get all input connection from this node"""
@@ -599,7 +630,7 @@ class Node(QObject, ISerialisableJSON):
             input_chunk: JSONChunk = node_in.__class__.serialiseJSON(node_in)
             data["inputs"].append(JSONChunk.toJson(input_chunk))
 
-            con: NodeConnection = obj.getConnection(node_in.uuid)
+            con: NodeConnection = obj.getConnectionFromInput(node_in)
             if con is not None:
                 connection_chunk: JSONChunk = NodeConnection.serialiseJSON(con)
                 data["connections"].append(JSONChunk.toJson(connection_chunk))
