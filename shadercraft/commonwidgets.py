@@ -90,7 +90,7 @@ class FloatProperty(CommonWidget):
         self.frame_widget: QFrame = QFrame(parent=self)
         self.frame_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.frame_widget.setLayout(QVBoxLayout())
-        self.frame_widget.layout().setContentsMargins(0, 0, 0, 0)
+        self.frame_widget.layout().setContentsMargins(8, 0, 8, 0)
         self.frame_widget.layout().setSpacing(4)
         self.label_widget: QLabel = QLabel(self.property_label, parent=self.frame_widget)
         self.float_widget: QDoubleSpinBox = QDoubleSpinBox(parent=self.frame_widget)

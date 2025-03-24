@@ -28,7 +28,7 @@ class PropertyPanelWidget(QWidget):
 
         self.setObjectName("PropertyPanelWidget")
         self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(6, 2, 6, 2)
+        self.layout().setContentsMargins(0, 2, 0, 2)
         self.layout().setSpacing(0)
 
         self._initGeneralPropertyWidgets()
@@ -46,7 +46,7 @@ class PropertyPanelWidget(QWidget):
         self.layout().addWidget(self.general_box)
 
         self.general_box.setLayout(QVBoxLayout())
-        self.general_box.layout().setContentsMargins(0, 0, 0, 10)
+        self.general_box.layout().setContentsMargins(0, 32, 0, 10)
         self.general_box.layout().setSpacing(10)
         self.general_box.layout().setAlignment(Qt.AlignTop)
 
@@ -86,7 +86,7 @@ class PropertyPanelWidget(QWidget):
         self.input_properties_box.setChecked(False)
         self.input_properties_box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.input_properties_box.setLayout(QVBoxLayout())
-        self.input_properties_box.layout().setContentsMargins(0, 0, 0, 10)
+        self.input_properties_box.layout().setContentsMargins(0, 32, 0, 10)
         self.input_properties_box.layout().setSpacing(10)
         self.input_properties_box.layout().setAlignment(Qt.AlignTop)
         self.layout().addWidget(self.input_properties_box)

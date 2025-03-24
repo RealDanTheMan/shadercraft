@@ -126,6 +126,8 @@ class AppWindow(QMainWindow):
         self.log_view.setReadOnly(True)
         self.ui.OutputViewFrame.setLayout(QVBoxLayout())
         self.ui.OutputViewFrame.layout().addWidget(self.log_view)
+        self.ui.OutputViewFrame.layout().setContentsMargins(1, 1, 1, 1)
+
         self.updateLogView()
 
         self.log_timer.timeout.connect(self.updateLogView)
@@ -136,6 +138,7 @@ class AppWindow(QMainWindow):
         self.property_panel.preview_redraw_requested.connect(self.onPreviewRedrawRequested)
         self.ui.PropertiesPanelFrame.setLayout(QVBoxLayout())
         self.ui.PropertiesPanelFrame.layout().addWidget(self.property_panel)
+        self.ui.PropertiesPanelFrame.layout().setContentsMargins(1, 1, 1, 1)
 
     def _initPreviewViewport(self) -> None:
         Log.info("Initialising preview viewport")
@@ -147,6 +150,7 @@ class AppWindow(QMainWindow):
         self.preview_viewport.setMinimumWidth(128)
         frame.setLayout(QVBoxLayout())
         frame.layout().addWidget(self.preview_viewport)
+        frame.layout().setContentsMargins(1, 1, 1, 1)
 
         # Set viewport to redraw at 60Hz
         self.preview_timer.timeout.connect(self.preview_viewport.requestRedraw)
