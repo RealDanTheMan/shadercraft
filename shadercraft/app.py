@@ -8,7 +8,7 @@ from PySide6.QtGui import QSurfaceFormat
 
 from .asserts import assertRef
 from .appwindow import AppWindow
-from .styles import app_style
+from .styles import theme_style
 
 def initLogger(level=Log.DEBUG, file: str = "app.log"):
     """Initialise main app logger"""
@@ -55,7 +55,7 @@ def main() -> int:
     Log.info("Creaing app window")
 
     window: AppWindow = AppWindow()
-    window.setStyleSheet(app_style)
+    window.setStyleSheet(theme_style)
     window.show()
     window.preview_viewport.update()
 
