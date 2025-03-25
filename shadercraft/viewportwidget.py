@@ -4,7 +4,7 @@ import logging as Log
 import OpenGL.GL as GL
 from PySide6.QtWidgets import QWidget
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
-from PySide6.QtGui import QOpenGLContext
+from PySide6.QtGui import QOpenGLContext, QMatrix4x4
 from PySide6.QtCore import QTimer
 
 from .asserts import assertRef, assertTrue, assertType
@@ -17,6 +17,10 @@ class ViewportWidget(QOpenGLWidget):
         self.fallback_shader: GL.GLuint = None
         self.active_shader: GL.GLuint = None
         self.preview_geo: GFXRenderable = None
+
+        self.__sv_model: QMatrix4x4 = QMatrix4x4()
+        self.__sv_view: QMatrix4x4 = QMatrix4x4()
+        self.__sv_perspective: QMatrix4x4 = QMatrix4x4()
 
     def initializeGL(self) -> None:
         """Initialise graphics context for this widget"""
@@ -35,6 +39,8 @@ class ViewportWidget(QOpenGLWidget):
         GL.glEnable(GL.GL_DEBUG_OUTPUT_SYNCHRONOUS)
         #GL.glDebugMessageCallback(GL.GLDEBUGPROC(self.graphicsMessageCallback), None)
 
+        self.initShaderSystemInputs()
+
     def paintGL(self) -> None:
         """Redraw GL surface"""
         self.makeCurrent()
@@ -50,6 +56,7 @@ class ViewportWidget(QOpenGLWidget):
         GL.glBindVertexArray(self.preview_geo.vao)
 
         # Draw
+        self.sendShaderSystemInputs(self.active_shader)
         GL.glDrawElements(
             GL.GL_TRIANGLES,
             len(self.preview_geo.indices),
@@ -61,9 +68,11 @@ class ViewportWidget(QOpenGLWidget):
         """
         Event handler invoked when the GL surface is resized.
         This can happen when the actual widget is resized by QT layout engine.
+
         """
         Log.debug("Resizing OpenGL viewport widget")
         GL.glViewport(0, 0, w, h)
+        self.__sv_perspective = self.calculateViewportPerspective()
 
     def requestRedraw(self) -> None:
         """Redraws the OpenGL viewport"""
@@ -97,6 +106,58 @@ class ViewportWidget(QOpenGLWidget):
 
         GFX.bindRenderableShader(self.preview_geo, self.active_shader)
         return True
+
+    def initShaderSystemInputs(self) -> None:
+        """
+        Initialises default system shader values.
+
+        """
+        # Model transform at identity/origin.
+        self.__sv_model = QMatrix4x4()
+
+        # Offset the camera a little to ensure the model has a bit of padding in the scene.
+        self.__sv_view = QMatrix4x4()
+        self.__sv_view.translate(0.0, 0.0, -2.1)
+
+        # Calculate perspective projection matrix.
+        self.__sv_perspective = self.calculateViewportPerspective()
+
+    def sendShaderSystemInputs(self, shader: int) -> None:
+        """
+        Send system value shader inputs to given shader program.
+
+        Parameters:
+            shader (int) : GL ID of the compiled shader program to send inputs to.
+
+        """
+        sv_view_loc: int = GL.glGetUniformLocation(shader, "sv_view")
+        sv_model_loc: int = GL.glGetUniformLocation(shader, "sv_model")
+        sv_perspective_loc: int = GL.glGetUniformLocation(shader, "sv_perspective")
+
+        assertRef(sv_view_loc)
+        assertRef(sv_model_loc)
+        assertRef(sv_perspective_loc)
+
+        GL.glUniformMatrix4fv(sv_view_loc, 1, GL.GL_FALSE, self.__sv_view.data())
+        GL.glUniformMatrix4fv(sv_model_loc, 1, GL.GL_FALSE, self.__sv_model.data())
+        GL.glUniformMatrix4fv(sv_perspective_loc, 1, GL.GL_FALSE, self.__sv_perspective.data())
+
+    def calculateViewportPerspective(self, fov: float = 60.0) -> QMatrix4x4:
+        """
+        Compute perspective projection matrix based on the current aspect ratio of the widget.
+
+        Parameters:
+            fov (float) : Vertical field of view angle in degrees.
+
+        """
+        aspect: float = self.width() / self.height()
+        near_clip: float = 0.001
+        far_clip: float = 10000.0
+
+        mat: QMatrix4x4 = QMatrix4x4()
+        mat.perspective(fov, aspect, near_clip, far_clip)
+
+        return mat
 
     @staticmethod
     def graphicsMessageCallback(
