@@ -1,8 +1,8 @@
 from __future__ import annotations
 import logging as Log
-from PySide6.QtGui import QWheelEvent, QMouseEvent, QKeyEvent
+from PySide6.QtGui import QWheelEvent, QMouseEvent, QKeyEvent, QPainter, QColor, QTransform
 from PySide6.QtWidgets import QGraphicsView
-from PySide6.QtCore import QPointF, Qt, QPoint
+from PySide6.QtCore import QPointF, Qt, QPoint, QRectF
 
 from .asserts import assertRef, assertTrue
 from .nodegraphscene import NodeGraphScene
@@ -30,6 +30,11 @@ class NodeGraphView(QGraphicsView):
         self._pan_enabled: bool = False
         self._pan_ongoing: bool = False
         self._pan_mouse_pos: QPointF = QPointF()
+
+        self.tile_size: int = 10
+        self.tile_odd_color: QColor = QColor(22, 22, 22)
+        self.tile_event_color: QColor = QColor(16, 16, 16)
+
 
     def setScene(self, scene: NodeGraphScene):
         """Bind graphics scene to this view"""
@@ -107,3 +112,39 @@ class NodeGraphView(QGraphicsView):
         Log.debug("Disabling mouse pan mode")
         self._pan_enabled = False
         self._pan_ongoing = False
+
+    def drawBackground(self, painter: QPainter, rect: QRectF) -> None:
+        """
+        Draws shader graph widget background grid pattern.
+        Overrides basic QGraphicsView implementation.
+
+        """
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing, False)
+
+        # Project tiles size to graph scene transform.
+        scene_tr: QTransform = self.transform().inverted()[0]
+        scene_tr = QTransform(1, 0, 0, 0, scene_tr.m31(), scene_tr.m32())
+        scene_tile_size: float = scene_tr.mapRect(QRectF(0, 0, self.tile_size, self.tile_size)).width()
+
+        # Round down projected tile points.
+        left: int = int(rect.left() // scene_tile_size) * scene_tile_size
+        top: int = int(rect.top() // scene_tile_size) * scene_tile_size
+
+        y: int = top
+        while y < rect.bottom():
+            x: int = left
+            row: int = int(y / scene_tile_size) % 2
+            while x < rect.right():
+                col: int = int(x / scene_tile_size) % 2
+                color: QColor = self.tile_event_color if (row + col) % 2 == 0 else self.tile_odd_color
+                painter.fillRect(
+                    x,
+                    y,
+                    scene_tile_size,
+                    scene_tile_size,
+                    color
+                )
+                x += scene_tile_size
+            y += scene_tile_size
+        painter.restore()
