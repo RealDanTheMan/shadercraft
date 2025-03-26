@@ -55,6 +55,7 @@ def main() -> int:
     Log.info("Creaing app window")
 
     window: AppWindow = AppWindow()
+    window.resize(1920, 1200)
     window.setStyleSheet(theme_style)
     window.show()
     window.preview_viewport.update()
