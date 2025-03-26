@@ -67,8 +67,10 @@ class ConnectionWidget(QGraphicsWidget):
         assertType(end, QPointF)
 
         # Derive bezier control points & build cubic path
-        p1: QPointF = QPointF(start.x() + end.x() * 0.5, start.y())
-        p2: QPointF = QPointF(start.x() + end.x() * 0.5, end.y())
+        mid: float = (end.x() - start.x()) * 0.5
+        p1: QPointF = QPointF(start.x() + mid, start.y())
+        p2: QPointF = QPointF(start.x() + mid, end.y())
+
 
         self.__path.clear()
         self.__path.moveTo(start)
